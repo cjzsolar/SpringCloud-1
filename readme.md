@@ -6,67 +6,105 @@
 
 ### 先决条件
 
+首先本机先要安装以下环境，建议先学习了解springboot和springcloud基础知识。
+
 - [git](https://git-scm.com/)
 - [java8](http://www.oracle.com/technetwork/java/javase/downloads/index.html) 
 - [maven](http://maven.apache.org/) 
-- [postgresql](http://www.postgresql.org/)
-- [redis](http://redis.io/download)
-- [rabbitmq](http://rabbitmq.io/download)
 
 ### 开发环境
 
 1. 克隆代码库： `git clone https://gitee.com/toopoo/SpringCloud.git`
 
-2. 生成ide配置： `mvn idea:idea` 并导入对应的ide进行开发,IDE安装lombok插件
+2. 安装公共库到本地仓库： 
+
+`cd common && mvn install`
+
+`cd auth/authentication-client && mvn install`
+
+3. 生成ide配置： `mvn idea:idea` 并导入对应的ide进行开发，IDE安装lombok插件（很重要，否则IDE会显示编译报错）
 
 ### 编译 & 启动
 
 * 1.启动基础服务：`docker-compose -f docker-compose.yml` 或单个启动`docker-compose up 服务名`
 
-|  服务         |   服务名         |  端口     | 备注                                            |
-|--------------|-----------------|-----------|------------------------------------------------|
-|  数据库       |   postgres      |  5432     |  目前各应用共用1个实例，各应用可建不同的database    |
-|  KV缓存       |   redis         |  6379     |  目前共用，原则上各应用单独实例    |
-|  消息中间件    |   rabbitmq      |  5672     |  共用                          |
-|  日志收集中间件 |   zipkin-server |  9411     |  共用                          |
-|  搜索引擎中间件 |   elasticsearch |  9200     |  共用    |
-|  日志分析工具   |   kibana        |  5601     |  共用    |
-|  数据可视化工具 |   grafana       |  3000     |  共用    |
+在启动应用之前，需要先启动数据库、缓存、MQ等中间件，可根据自己需要启动的应用选择启动某些基础组件，一般来说启动数据库、redis、rabbitmq即可，其它组件若有需要，根据如下命令启动即可。
 
-* 2.创建数据库及表
+该步骤使用了docker快速搭建相应的基础环境，需要你对docker、docker-compose有一定了解和使用经验。
+
+如你需要使用mysql，请自行搭建即可。
+
+|  服务          |   服务名         |  端口     | 备注                                            |
+|---------------|-----------------|-----------|-------------------------------------------------|
+|  数据库        |   postgres      |  5432     |  目前各应用共用1个实例，各应用可建不同的database     |
+|  KV缓存        |   redis         |  6379     |  目前共用，原则上各应用单独实例    |
+|  消息中间件     |   rabbitmq      |  5672     |  共用                          |
+|  日志收集中间件  |   zipkin-server |  9411     |  共用                          |
+|  搜索引擎中间件  |   elasticsearch |  9200     |  共用    |
+|  日志分析工具    |   kibana        |  5601     |  共用    |
+|  数据可视化工具  |   grafana       |  3000     |  共用    |
+
+* 2.启动配置中心：`docker-compose -f docker-compose.yml -f docker-compose.config.yml up apollo-portal`
+
+该步骤不是必须，若你想使用apollo为配置中心，通过以上命令启动即可。目前仅demos/producer应用使用了apollo作为配置中心
+
+|  服务          |   服务名         |  端口     | 备注                                            |
+|---------------|-----------------|-----------|-------------------------------------------------|
+|  apollo配置中心 |   apollo-portal |  8070     |  配置中心管理后台，访问地址http://localhost:8070   |
+
+* 3.创建数据库及表
+
+只有部分应用有数据库脚本，若启动的应用有数据库的依赖，请初使化表结构和数据后再启动应用。
 
 **子项目脚本**
 
 路径一般为：子项目/db
 
-如：`auth/db` 下的脚本
+如：`auth/db` 下的脚本，请先执行ddl建立表结构后再执行dml数据初使化
 
 **应用脚本**
 
-路径一般为：子项目/服务名/src/main/db
+路径一般为：子项目/应用名/src/main/db
 
-如：services/producer/src/main/db 下的脚本
+如：demos/producer/src/main/db 下的脚本
 
-* 3.启动应用： `mvn springboot:run` 
+* 4.启动应用
 
-| 服务分类  | 服务名                     |   简介     |  应用地址                | 文档 |
-|----------|---------------------------|-----------|-------------------------|------|
-|  center  | eureka-server             | 注册中心   |  http://localhost:8761  |      |
-|  center  | bus-server                | 消息中心   |  http://localhost:8071  |      |
-|  center  | config-server             | 配置中心   |  http://localhost:8888  | [配置中心文档](./center/config)      |
-|  auth    | authorization-server      | 授权服务   |  http://localhost:8000  | [权限服务文档](./auth) 、[授权Server文档](./auth/authorization-server)     |
-|  auth    | authentication-server     | 签权服务   |  http://localhost:8001  | [认证Server文档](./auth/authentication-server)    |
-|  auth    | authentication-client     | 签权客户端  |  jar包引入              |      |
-|  gateway | gateway                   | 网关       |  http://localhost:8443 |      |
-|  gateway | gateway-admin             | 网关管理    |  http://localhost:8445 |      |
-|  monitor | admin                     | 总体监控    |  http://localhost:8022 |      |
-|  monitor | hystrix-dashboard         | 性能指标展示 |  http://localhost:8021 |      |
-|  monitor | turbine                   | 性能指标收集 |  http://localhost:8031 |      |
+根据自己需要，启动相应服务进行测试，cd 进入相关应用目录，执行命令： `mvn spring-boot:run` 
+
+| 服务分类  | 服务名                     |  依赖基础组件                      |   简介       |  应用地址                | 文档                    |
+|----------|---------------------------|----------------------------------|-------------|-------------------------|-------------------------|
+|  center  | eureka-server             | rabbitmq                         |  注册中心    |  http://localhost:8761  | [注册中心文档](./center/eureka)      |
+|  center  | bus-server                | rabbitmq、eureka-server           |  消息中心    |  http://localhost:8071  | [消息中心文档](./center/bus)         |
+|  center  | config-server             | rabbitmq、eureka-server           |  配置中心    |  http://localhost:8888  | [配置中心文档](./center/config)      |
+|  auth    | authorization-server      | rabbitmq、postgres、eureka-server |  授权服务    |  http://localhost:8000  | [权限服务文档](./auth) 、[授权Server文档](./auth/authorization-server)     |
+|  auth    | authentication-server     | rabbitmq、postgres、eureka-server |  签权服务    |  http://localhost:8001  | [认证Server文档](./auth/authentication-server)    |
+|  auth    | authentication-client     | 无                                |  签权客户端  |  jar包引入              |      |
+|  gateway | gateway-web               | rabbitmq、eureka-server、redis            |  WEB网关    |  http://localhost:8443 |  [WEB网关文档](./center/eureka)       |
+|  gateway | gateway-admin             | rabbitmq、postgres、eureka-server、redis  |  网关管理    |  http://localhost:8445 |  [网关管理后台文档](./center/eureka)   |
+|  monitor | admin                     | rabbitmq、eureka-server                   |  总体监控    |  http://localhost:8022 |      |
+|  monitor | hystrix-dashboard         | rabbitmq、eureka-server                   |  性能指标展示 |  http://localhost:8021 |      |
+|  monitor | turbine                   | rabbitmq、eureka-server                   |  性能指标收集 |  http://localhost:8031 |      |
+
+* 5.案例示意图
+
+以下是一个用户访问的的示意图，用户请求通过gateway-web应用网关访问后端应用，通过authorization-server应用登陆授权换取token，请求通过authentication-server应用进行权限签别后转发到"您的业务应用"中
+
+authorization-server为授权应用，启动前请初使化好数据库，[授权Server文档](./auth/authorization-server)。
+
+authentication-server为签权应用，若有新增接口，请初使化相关权限数据到resources表中。
+
+gateway-admin可动态调整gateway-web的路由策略，测试前请先配置网关的转发策略，[路由策略配置](https://github.com/zhoutaoo/SpringCloud/tree/master/gateway/gateway-admin#%E4%BD%BF%E7%94%A8%E6%8C%87%E5%8D%97)。
+
+[示意图](https://www.processon.com/diagraming/5cc05ff9e4b06bcc138a9ae7)
 
 ### 测试
 
 运行 `mvn test` 启动测试.
 
+## 架构
+
+[架构](https://www.processon.com/view/link/597ffa52e4b06a973c4d86ba)
 
 ## 开发指南
 
@@ -89,6 +127,7 @@
 │   ├── test               --测试工具类库
 │   ├── web                --WEB核心类库
 │   └── pom.xml          
+├── docs                 --文档及资源文件
 ├── data                 --server及服务数据存储目录
 │   ├── elasticsearch      --elasticsearch配置数据存储位置
 │   ├── postgres           --postgres数据库文件存储目录 
@@ -99,7 +138,7 @@
 │   ├── gateway-admin      --springcloud gateway的网关管理模块
 │   └── pom.xml
 ├── monitor              --监控、日志及服务管理子项目
-│   ├── admin              --springcloud admin管理
+│   ├── admin              --springboot admin管理
 │   ├── hystrix-dashboard  --hystrix监控
 │   ├── turbine            --turbine监控聚集 
 │   └── pom.xml
@@ -109,6 +148,7 @@
 │   ├── producer           --服务提供者，产品服务
 │   ├── producer-jpa       --服务提供者，产品服务,jpa和hateoas
 │   └── pom.xml
+├── .env                 --docker-compose环境变量配置文件
 ├── readme.md            --readme文档入口
 ├── docker-compose.yml            --docker compose配置文件，基础组件如数据库、运维组件 
 ├── docker-compose.override.yml   --docker compose配置文件，注册中心、网关、授权认证服务等 
@@ -127,7 +167,10 @@
 ├── src                      --源码目录
 │   ├── main                   --源文件
 │   │   ├── db                 --服务db脚本目录
+│   │   │   ├── db.sql           --创建库的脚本
 │   │   │   ├── ddl              --建表语句等ddl
+│   │   │   │   ├── mysql          --mysql ddl
+│   │   │   │   └── postgres       --postgres ddl
 │   │   │   └── dml              --基础数据dml
 │   │   ├── docker             --docker相关配置文件
 │   │   │   └── Dockerfile       --dockerfile
@@ -171,7 +214,7 @@
 |  配置中心 | Appollo                 |   ✅          |           |
 |  消息总线 | SpringCloud Bus+Rabbitmq|   ✅          |           |
 |  灰度分流 | OpenResty + lua         |   🏗          |           |
-|  动态网关 | SpringCloud Gateway     |   🏗          |  多种维度的流量控制（服务、IP、用户等），后端可配置化🏗          |
+|  动态网关 | SpringCloud Gateway     |   ✅          |  多种维度的流量控制（服务、IP、用户等），后端可配置化🏗          |
 |  授权认证 | Spring Security OAuth2  |   ✅          |  Jwt模式   |
 |  服务容错 | SpringCloud Hystrix     |   ✅          |           |
 |  服务调用 | SpringCloud OpenFeign   |   ✅          |           |
@@ -212,4 +255,6 @@
 
 EMail：zhoutaoo@foxmail.com
 
-![wechat](docs/wechat.png)
+群1满，请加群2，如下
+
+![wechat](docs/wechat.jpeg)
